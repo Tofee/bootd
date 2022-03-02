@@ -21,7 +21,7 @@
 
 #include "ApplicationManager.h"
 
-const string ApplicationManager::SERVICE_NAME = "com.palm.applicationManager";
+const string ApplicationManager::SERVICE_NAME = "com.webos.service.applicationManager";
 
 ApplicationManager::ApplicationManager()
     : AbsService(SERVICE_NAME),
@@ -85,7 +85,7 @@ bool ApplicationManager::_running(LSHandle *sh, LSMessage *reply, void *ctx)
 
 bool ApplicationManager::getForegroundAppInfo(Handle *handle, ApplicationManagerListener *listener)
 {
-    static const char *API = "luna://com.palm.applicationManager/getForegroundAppInfo";
+    static const char *API = "luna://com.webos.service.applicationManager/getForegroundAppInfo";
 
     string requestPayload = "{ \"subscribe\" : true }";
 
@@ -115,7 +115,7 @@ bool ApplicationManager::getForegroundAppInfo(Handle *handle, ApplicationManager
 
 bool ApplicationManager::running(Handle *handle, ApplicationManagerListener *listener)
 {
-    static const char *API = "luna://com.palm.applicationManager/running";
+    static const char *API = "luna://com.webos.service.applicationManager/running";
     pbnjson::JValue requestPayload = pbnjson::Object();
     requestPayload.put("subscribe", true);
 
@@ -145,7 +145,7 @@ bool ApplicationManager::running(Handle *handle, ApplicationManagerListener *lis
 
 bool ApplicationManager::launch(Handle *handle, Application &application, int timeout)
 {
-    static const char *API = "luna://com.palm.applicationManager/launch";
+    static const char *API = "luna://com.webos.service.applicationManager/launch";
     // 'boot' are reserved params
     application.getParams().put("boot", true);
     application.printInfo();
@@ -188,7 +188,7 @@ bool ApplicationManager::launch(Handle *handle, Application &application, int ti
 
 bool ApplicationManager::closeByAppId(Handle *handle, string appId)
 {
-    static const char *API = "luna://com.palm.applicationManager/closeByAppId";
+    static const char *API = "luna://com.webos.service.applicationManager/closeByAppId";
     pbnjson::JValue requestPayload = pbnjson::Object();
     requestPayload.put("id", appId);
 
@@ -219,7 +219,7 @@ bool ApplicationManager::closeByAppId(Handle *handle, string appId)
 
 bool ApplicationManager::getAppInfo(Handle *handle, string appId)
 {
-    static const char *API = "luna://com.palm.applicationManager/getAppInfo";
+    static const char *API = "luna://com.webos.service.applicationManager/getAppInfo";
     pbnjson::JValue requestPayload = pbnjson::Object();
     requestPayload.put("id", appId);
 
@@ -256,7 +256,7 @@ bool ApplicationManager::getAppInfo(Handle *handle, string appId)
 
 bool ApplicationManager::listLaunchPoints(Handle *handle, int seconds)
 {
-    static const char *API = "luna://com.palm.applicationManager/listLaunchPoints";
+    static const char *API = "luna://com.webos.service.applicationManager/listLaunchPoints";
     string requestPayload = "{}";
 
     try {
