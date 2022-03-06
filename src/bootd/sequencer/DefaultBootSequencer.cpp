@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 LG Electronics, Inc.
+// Copyright (c) 2016-2021 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,8 +31,20 @@ DefaultBootSequencer::~DefaultBootSequencer()
 
 void DefaultBootSequencer::doBoot()
 {
+    // apps to be started on boot, with keepAlive
+    std::vector<std::string> startupCoreAppsOnBoot = {
+        "com.palm.launcher",
+        "com.palm.systemui"
+    };
+    std::vector<std::string> startupAppsOnBoot = {
+        "com.webos.app.notification",
+        "com.webos.app.volume",
+        "org.webosports.app.phone",
+        "com.palm.app.email",
+        "com.palm.app.calendar"
+    };
+    
     /* DefaultBootSequencer is just booting. */
-    PmtScopedBlock(PMTRACE_DEFAULT_CATEGORY);
     g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Start DefaultBootSequencer");
 
     m_bootManager.init(m_mainLoop, this);
@@ -44,30 +56,54 @@ void DefaultBootSequencer::doBoot()
     m_curPowerStatus = PowerStatus::PowerStatus_active;
     m_curBootTarget = BootTarget::BootTarget_hardware;
 
+    int displayCnt = StaticEventDB::instance()->getDisplayCnt();
+    g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Display device count : (%d)", displayCnt);
+
     proceedCoreBootDone();
     proceedInitBootDone();
     proceedDataStoreInitStart();
+    ApplicationManager::instance()->listLaunchPoints(&m_bootManager, EventCoreTimeout::EventCoreTimeout_Max);
+
+    int iDisplay = 0;
+    // first, start the core apps (launcher, systemui...) with keepalive
+    for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
+        for (auto &appId: startupCoreAppsOnBoot) {
+            launchTargetApp(appId, true, true, iDisplay); // launchedHidden : false , keepAlive : true
+        }
+    }
+    // then, start some basic apps (calendar, email...) without keepalive, and starting hidden
+    for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
+        for (auto &appId: startupAppsOnBoot) {
+            launchTargetApp(appId, false, false, iDisplay); // launchedHidden : true , keepAlive : false
+        }
+    }
+    
     proceedMinimalBootDone();
     proceedRestBootDone();
     proceedBootDone();
+    ApplicationManager::instance()->running(&m_bootManager, this);
 
     DynamicEventDB::instance()->triggerEvent(DynamicEventDB::EVENT_BOOT_COMPLETE);
     g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Bootd's job is done");
 
-    ApplicationManager::instance()->listLaunchPoints(&m_bootManager, EventCoreTimeout::EventCoreTimeout_Max);
-    /* Disable the launch of bareapp since we don't include it in LuneOS images
-    launchTargetApp();
-    */
 }
 
-void DefaultBootSequencer::launchTargetApp()
+void DefaultBootSequencer::launchTargetApp(string appId, bool visible, bool keepAlive, int displayId)
 {
     Application application;
-    application.setAppId("bareapp");
+    application.setAppId(appId);
+    application.setVisible(visible);
+    application.setDisplayId(displayId);
+
+    if (keepAlive)
+        application.setKeepAlive(keepAlive);
 
     for (int i = 0; i < COUNT_LAUNCH_RETRY; i++) {
         if (ApplicationManager::instance()->launch(&m_bootManager, application)) {
-            g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Launch first app (%s)", application.getAppId().c_str());
+            if (visible)
+                g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Launch target app (%s) on foreground", application.getAppId().c_str());
+            else
+                g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Launch target app (%s) on background", application.getAppId().c_str());
             break;
         }
         g_Logger.warningLog(Logger::MSGID_BOOTSEQUENCER, "Fail to launch '%s'. Retry...(%d)", application.getAppId().c_str(), i);
