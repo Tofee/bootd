@@ -33,10 +33,8 @@ void DefaultBootSequencer::doBoot()
 {
     // apps to be started on boot, with keepAlive
     std::vector<std::string> startupCoreAppsOnBoot = {
-        /* these are already started by LunaAppManager !
         "com.palm.launcher",
         "com.palm.systemui"
-        */
     };
     std::vector<std::string> startupAppsOnBoot = {
         "com.webos.app.notification",
@@ -70,7 +68,7 @@ void DefaultBootSequencer::doBoot()
     // first, start the core apps (launcher, systemui...) with keepalive
     for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
         for (auto &appId: startupCoreAppsOnBoot) {
-            launchTargetApp(appId, true, true, iDisplay);
+            launchTargetApp(appId, true, true, iDisplay); // launchedHidden : false , keepAlive : true
         }
     }
     // then, start some basic apps (calendar, email...) without keepalive
