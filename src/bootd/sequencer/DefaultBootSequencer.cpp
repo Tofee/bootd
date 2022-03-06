@@ -31,6 +31,21 @@ DefaultBootSequencer::~DefaultBootSequencer()
 
 void DefaultBootSequencer::doBoot()
 {
+    // apps to be started on boot, with keepAlive
+    std::vector<std::string> startupCoreAppsOnBoot = {
+        /* these are already started by LunaAppManager !
+        "com.palm.launcher",
+        "com.palm.systemui"
+        */
+    };
+    std::vector<std::string> startupAppsOnBoot = {
+        "com.webos.app.notification",
+        "com.webos.app.volume",
+        "org.webosports.app.phone",
+        "com.palm.app.email",
+        "com.palm.app.calendar"
+    };
+    
     /* DefaultBootSequencer is just booting. */
     g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Start DefaultBootSequencer");
 
@@ -42,37 +57,29 @@ void DefaultBootSequencer::doBoot()
     m_curBootStatus = BootStatus::BootStatus_normal;
     m_curPowerStatus = PowerStatus::PowerStatus_active;
     m_curBootTarget = BootTarget::BootTarget_hardware;
+
     int displayCnt = StaticEventDB::instance()->getDisplayCnt();
     g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Display device count : (%d)", displayCnt);
-
-    if (displayCnt == 2) {
-        // Launch home on display0 and launch bareapp on display1
-        launchTargetApp("bareapp", true, false, 0);
-        launchTargetApp("bareapp", true, false, 1);
-        DynamicEventDB::instance()->waitEvent(m_mainLoop, DynamicEventDB::EVENT_FIRSTAPP_LAUNCHED, EventCoreTimeout::EventCoreTimeout_Min);
-        launchTargetApp("com.webos.app.home", true, true, 0); // launchedHidden : false , keepAlive : true
-        launchTargetApp("com.webos.app.home", true, true, 1); // launchedHidden : false , keepAlive : true
-    } else {
-        // Always launch firstapp (bareapp) first
-        launchTargetApp("bareapp", true, false);
-        DynamicEventDB::instance()->waitEvent(m_mainLoop, DynamicEventDB::EVENT_FIRSTAPP_LAUNCHED, EventCoreTimeout::EventCoreTimeout_Min);
-        launchTargetApp("com.webos.app.home", true, true); // launchedHidden : false , keepAlive : true
-    }
 
     proceedCoreBootDone();
     proceedInitBootDone();
     proceedDataStoreInitStart();
     ApplicationManager::instance()->listLaunchPoints(&m_bootManager, EventCoreTimeout::EventCoreTimeout_Max);
 
-    if (displayCnt == 2) {
-        launchTargetApp("com.webos.app.notification", false, true, 0); // launchedHidden : false , keepAlive : true
-        launchTargetApp("com.webos.app.notification", false, true, 1); // launchedHidden : false , keepAlive : true
-        launchTargetApp("com.webos.app.volume", false, true, 0); // launchedHidden : false , keepAlive : true
-        launchTargetApp("com.webos.app.volume", false, true, 1); // launchedHidden : false , keepAlive : true
-    } else {
-        launchTargetApp("com.webos.app.notification", false, true); // launchedHidden : false , keepAlive : true
-        launchTargetApp("com.webos.app.volume", false, true); // launchedHidden : false , keepAlive : true
+    int iDisplay = 0;
+    // first, start the core apps (launcher, systemui...) with keepalive
+    for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
+        for (auto &appId: startupCoreAppsOnBoot) {
+            launchTargetApp(appId, true, true, iDisplay);
+        }
     }
+    // then, start some basic apps (calendar, email...) without keepalive
+    for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
+        for (auto &appId: startupAppsOnBoot) {
+            launchTargetApp(appId, true, false, iDisplay); // launchedHidden : false , keepAlive : false
+        }
+    }
+    
     proceedMinimalBootDone();
     proceedRestBootDone();
     proceedBootDone();
