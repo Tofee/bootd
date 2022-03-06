@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 LG Electronics, Inc.
+// Copyright (c) 2016-2020 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,31 +43,63 @@ void DefaultBootSequencer::doBoot()
     m_curBootStatus = BootStatus::BootStatus_normal;
     m_curPowerStatus = PowerStatus::PowerStatus_active;
     m_curBootTarget = BootTarget::BootTarget_hardware;
+    int displayCnt = StaticEventDB::instance()->getDisplayCnt();
+    g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Display device count : (%d)", displayCnt);
+
+    if (displayCnt == 2) {
+        // Launch home on display0 and launch bareapp on display1
+        launchTargetApp("bareapp", true, false, 0);
+        launchTargetApp("bareapp", true, false, 1);
+        DynamicEventDB::instance()->waitEvent(m_mainLoop, DynamicEventDB::EVENT_FIRSTAPP_LAUNCHED, EventCoreTimeout::EventCoreTimeout_Min);
+        launchTargetApp("com.webos.app.home", true, true, 0); // launchedHidden : false , keepAlive : true
+        launchTargetApp("com.webos.app.home", true, true, 1); // launchedHidden : false , keepAlive : true
+    } else {
+        // Always launch firstapp (bareapp) first
+        launchTargetApp("bareapp", true, false);
+        DynamicEventDB::instance()->waitEvent(m_mainLoop, DynamicEventDB::EVENT_FIRSTAPP_LAUNCHED, EventCoreTimeout::EventCoreTimeout_Min);
+        launchTargetApp("com.webos.app.home", true, true); // launchedHidden : false , keepAlive : true
+    }
 
     proceedCoreBootDone();
     proceedInitBootDone();
     proceedDataStoreInitStart();
+    ApplicationManager::instance()->listLaunchPoints(&m_bootManager, EventCoreTimeout::EventCoreTimeout_Max);
+
+    if (displayCnt == 2) {
+        launchTargetApp("com.webos.app.notification", false, true, 0); // launchedHidden : false , keepAlive : true
+        launchTargetApp("com.webos.app.notification", false, true, 1); // launchedHidden : false , keepAlive : true
+        launchTargetApp("com.webos.app.volume", false, true, 0); // launchedHidden : false , keepAlive : true
+        launchTargetApp("com.webos.app.volume", false, true, 1); // launchedHidden : false , keepAlive : true
+    } else {
+        launchTargetApp("com.webos.app.notification", false, true); // launchedHidden : false , keepAlive : true
+        launchTargetApp("com.webos.app.volume", false, true); // launchedHidden : false , keepAlive : true
+    }
     proceedMinimalBootDone();
     proceedRestBootDone();
     proceedBootDone();
+    ApplicationManager::instance()->running(&m_bootManager, this);
 
     DynamicEventDB::instance()->triggerEvent(DynamicEventDB::EVENT_BOOT_COMPLETE);
     g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Bootd's job is done");
 
-    ApplicationManager::instance()->listLaunchPoints(&m_bootManager, EventCoreTimeout::EventCoreTimeout_Max);
-    /* Disable the launch of bareapp since we don't include it in LuneOS images
-    launchTargetApp();
-    */
 }
 
-void DefaultBootSequencer::launchTargetApp()
+void DefaultBootSequencer::launchTargetApp(string appId, bool visible, bool keepAlive, int displayId)
 {
     Application application;
-    application.setAppId("bareapp");
+    application.setAppId(appId);
+    application.setVisible(visible);
+    application.setDisplayId(displayId);
+
+    if (keepAlive)
+        application.setKeepAlive(keepAlive);
 
     for (int i = 0; i < COUNT_LAUNCH_RETRY; i++) {
         if (ApplicationManager::instance()->launch(&m_bootManager, application)) {
-            g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Launch first app (%s)", application.getAppId().c_str());
+            if (visible)
+                g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Launch target app (%s) on foreground", application.getAppId().c_str());
+            else
+                g_Logger.infoLog(Logger::MSGID_BOOTSEQUENCER, "Launch target app (%s) on background", application.getAppId().c_str());
             break;
         }
         g_Logger.warningLog(Logger::MSGID_BOOTSEQUENCER, "Fail to launch '%s'. Retry...(%d)", application.getAppId().c_str(), i);

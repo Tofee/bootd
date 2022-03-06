@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2018 LG Electronics, Inc.
+// Copyright (c) 2015-2019 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,12 +30,14 @@ Application::~Application()
 void Application::clear()
 {
     m_appId = "";
+    m_displayId = 0;
     // Basically, all apps launched by bootd is 'visible':true and 'splash':false
     m_visible = true;
     m_launchSplash = false;
     m_isMvpdApp = false;
     m_isLaunched = false;
     m_isForeground = false;
+    m_isKeepAlive = false;
     m_params = pbnjson::Object();
 }
 
@@ -43,12 +45,10 @@ JValue Application::getJson()
 {
     JValue object = pbnjson::Object();
     object.put("id", m_appId);
-    // TODO: 'launchHidden' keyword should be removed.
-    object.put("launchHidden", !m_visible);
-    // TODO: Only MVPDApp use 'visible' option.
-    // Function name might be replaced with other name.
-    if (!m_visible) {
-        object.put("preload", "full");
+    // visible(launchedHidden) should be used in params
+    m_params.put("launchedHidden", !m_visible);
+    if (m_isKeepAlive) {
+        object.put("keepAlive", m_isKeepAlive);
     }
     object.put("noSplash", !m_launchSplash);
     if (!m_params.isNull()) {
@@ -61,12 +61,13 @@ JValue Application::getJson()
 void Application::printInfo()
 {
     g_Logger.debugLog(Logger::MSGID_GENERAL,
-                      "AppInfo=appId(%s), Visible(%s), LaunchSplash(%s), MVPD(%s), Launched(%s)",
+                      "AppInfo=appId(%s), Visible(%s), LaunchSplash(%s), MVPD(%s), Launched(%s), KeepAlive(%s)",
                       m_appId.c_str(),
                       isVisible() ? "true" : "false",
                       isLaunchSplash() ? "true" : "false",
                       isMvpdApp() ? "true" : "false",
-                      isLaunched() ? "true" : "false");
+                      isLaunched() ? "true" : "false",
+                      isKeepAlive() ? "true" : "false");
 }
 
 void Application::setAppId(string appId)
@@ -144,4 +145,20 @@ void Application::setForeground(bool foreground)
 bool Application::isForeground()
 {
     return m_isForeground;
+}
+
+void Application::setKeepAlive(bool keepAlive)
+{
+    m_isKeepAlive = keepAlive;
+}
+
+bool Application::isKeepAlive()
+{
+    return m_isKeepAlive;
+}
+
+void Application::setDisplayId(int displayId)
+{
+    m_displayId = displayId;
+    m_params.put("displayAffinity", m_displayId);
 }
