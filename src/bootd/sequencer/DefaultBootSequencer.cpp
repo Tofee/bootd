@@ -71,10 +71,10 @@ void DefaultBootSequencer::doBoot()
             launchTargetApp(appId, true, true, iDisplay); // launchedHidden : false , keepAlive : true
         }
     }
-    // then, start some basic apps (calendar, email...) without keepalive
+    // then, start some basic apps (calendar, email...) without keepalive, and starting hidden
     for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
         for (auto &appId: startupAppsOnBoot) {
-            launchTargetApp(appId, true, false, iDisplay); // launchedHidden : false , keepAlive : false
+            launchTargetApp(appId, false, false, iDisplay); // launchedHidden : true , keepAlive : false
         }
     }
     
