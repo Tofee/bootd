@@ -94,6 +94,10 @@ void DefaultBootSequencer::launchTargetApp(string appId, bool visible, bool keep
     application.setAppId(appId);
     application.setVisible(visible);
     application.setDisplayId(displayId);
+    
+    pbnjson::JValue appParams = pbnjson::Object();
+    appParams.put("launchedAtBoot", true);
+    application.setParams(appParams);
 
     if (keepAlive)
         application.setKeepAlive(keepAlive);
