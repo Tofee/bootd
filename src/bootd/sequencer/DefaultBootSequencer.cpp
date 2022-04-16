@@ -14,6 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#include <algorithm>
+
 #include "event/DynamicEventDB.h"
 #include "service/ApplicationManager.h"
 #include "util/Logger.h"
@@ -59,6 +61,11 @@ void DefaultBootSequencer::doBoot()
         startupAppsOnBoot.push_back("org.webosports.app.firstuse");
     }
 
+    std::vector<std::string> visibleStartupAppsOnBoot = {
+        "com.palm.launcher",
+        "org.webosports.app.firstuse"
+    };
+
     /* DefaultBootSequencer is just booting. */
     g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Start DefaultBootSequencer");
 
@@ -83,14 +90,16 @@ void DefaultBootSequencer::doBoot()
     // first, start the core apps (launcher, systemui...) with keepalive
     for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
         for (auto &appId: startupCoreAppsOnBoot) {
-            launchTargetApp(appId, true, true, iDisplay); // launchedHidden : false , keepAlive : true
+            bool startVisible = (std::find(visibleStartupAppsOnBoot.begin(), visibleStartupAppsOnBoot.end(), appId)!=visibleStartupAppsOnBoot.end());
+            launchTargetApp(appId, startVisible, true, iDisplay); // keepAlive : true
         }
     }
 
     // then, start some basic apps (calendar, email...) without keepalive, and starting hidden
     for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
         for (auto &appId: startupAppsOnBoot) {
-            launchTargetApp(appId, false, false, iDisplay); // launchedHidden : true , keepAlive : false
+            bool startVisible = (std::find(visibleStartupAppsOnBoot.begin(), visibleStartupAppsOnBoot.end(), appId)!=visibleStartupAppsOnBoot.end());
+            launchTargetApp(appId, startVisible, false, iDisplay); // keepAlive : false
         }
     }
 
