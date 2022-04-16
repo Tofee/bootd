@@ -29,21 +29,36 @@ DefaultBootSequencer::~DefaultBootSequencer()
 {
 }
 
+bool DefaultBootSequencer::isFirstUse()
+{
+	return (!isFileExist("/var/luna/preferences/ran-first-use") ||
+            (isFileExist("/var/luna/preferences/ran-first-use") && !isFileExist("/var/luna/preferences/first-use-profile-created")));
+}
+
 void DefaultBootSequencer::doBoot()
 {
     // apps to be started on boot, with keepAlive
     std::vector<std::string> startupCoreAppsOnBoot = {
         "com.palm.launcher",
-        "com.palm.systemui"
+        "com.palm.systemui",
+        "org.webosports.app.phone"
     };
     std::vector<std::string> startupAppsOnBoot = {
         "com.webos.app.notification",
         "com.webos.app.volume",
-        "org.webosports.app.phone",
         "com.palm.app.email",
         "com.palm.app.calendar"
     };
-    
+
+    if(isFirstUse())
+    {
+        // do not start email and calendar just yet
+        startupAppsOnBoot.pop_back(); // "com.palm.app.calendar"
+        startupAppsOnBoot.pop_back(); // "com.palm.app.email"
+        // start firstuse
+        startupAppsOnBoot.push_back("org.webosports.app.firstuse");
+    }
+
     /* DefaultBootSequencer is just booting. */
     g_Logger.debugLog(Logger::MSGID_BOOTSEQUENCER, "Start DefaultBootSequencer");
 
@@ -71,13 +86,14 @@ void DefaultBootSequencer::doBoot()
             launchTargetApp(appId, true, true, iDisplay); // launchedHidden : false , keepAlive : true
         }
     }
+
     // then, start some basic apps (calendar, email...) without keepalive, and starting hidden
     for (iDisplay=0; iDisplay<displayCnt; ++iDisplay) {
         for (auto &appId: startupAppsOnBoot) {
             launchTargetApp(appId, false, false, iDisplay); // launchedHidden : true , keepAlive : false
         }
     }
-    
+
     proceedMinimalBootDone();
     proceedRestBootDone();
     proceedBootDone();
@@ -97,6 +113,9 @@ void DefaultBootSequencer::launchTargetApp(string appId, bool visible, bool keep
     
     pbnjson::JValue appParams = pbnjson::Object();
     appParams.put("launchedAtBoot", true);
+    if(isFirstUse()) {
+        appParams.put("mode", "first-use");
+    }
     application.setParams(appParams);
 
     if (keepAlive)
