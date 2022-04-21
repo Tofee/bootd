@@ -40,10 +40,12 @@ void DefaultBootSequencer::doBoot()
     };
     std::vector<std::string> startupAppsOnBoot = {
         "com.webos.app.notification",
-        "com.webos.app.volume",
+        "com.webos.app.volume"
+        /* these will be started by LunaAppManager !
         "org.webosports.app.phone",
         "com.palm.app.email",
         "com.palm.app.calendar"
+        */ 
     };
     
     /* DefaultBootSequencer is just booting. */
